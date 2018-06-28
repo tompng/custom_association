@@ -21,7 +21,7 @@ module CustomPreloaderExtension
   def preloader_for(reflection, owners, rhs_klass)
     preloader = super
     return preloader if preloader
-    CustomAssociationLoader if reflection.macro == :has_custom_field
+    return CustomAssociationLoader if reflection.macro == :has_custom_field
   end
 end
 
@@ -36,13 +36,13 @@ class CustomAssociation < ActiveRecord::Associations::Association
   end
 
   def reader
-    return @value if @loaded
-    writer load
+    load unless @loaded
+    @value
   end
 
   def load
     preloaded = @reflection.preloader.call [@owner]
-    @owner.instance_exec preloaded, &@reflection.block
+    writer @owner.instance_exec preloaded, &@reflection.block
   end
 end
 
