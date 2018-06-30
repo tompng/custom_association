@@ -46,13 +46,14 @@ class CustomAssociation < ActiveRecord::Associations::Association
   end
 end
 
-class CustomReflection < ActiveRecord::Reflection::AbstractReflection
+class CustomReflection < ActiveRecord::Reflection::AssociationReflection
   attr_reader :klass, :name, :preloader, :block
   def initialize(klass, name, preloader, block)
     @klass = klass
     @name = name
     @preloader = preloader
     @block = block || ->(preloaded) { preloaded[id] }
+    @options = {}
   end
 
   def macro
@@ -62,10 +63,6 @@ class CustomReflection < ActiveRecord::Reflection::AbstractReflection
   def association_class
     CustomAssociation
   end
-
-  def check_validity!; end
-
-  def check_preloadable!; end
 end
 
 class << ActiveRecord::Base

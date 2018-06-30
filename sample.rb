@@ -1,5 +1,5 @@
-# Model.has_custom_association association_name, preloader: ->(models) { preload and returns hash with key=model_id }
-# Model.has_custom_association association_name, preloader: ->(models) { preload and returns custom result } do |result|
+# Model.has_custom_association association_name, preloader: ->(models) { preload and return hash with key=model_id }
+# Model.has_custom_association association_name, preloader: ->(models) { return custom preloaded result } do |result|
 #   custom logic to retrieve value for this model(`result[id]` is used when block is not given)
 # end
 
@@ -28,6 +28,14 @@ end
 class Post < ActiveRecord::Base
   has_many :comments
   has_count_of :comments
+  has_custom_association :comments_last_three, preloader: ->(posts) {
+    # sql = 'nice and sweet sql to load last 3 comments for each posts'
+    # comments = Comment.where(post_id: posts.map(&:id)).where(sql)
+    # Hash.new{[]}.merge comments.group_by(&:post_id)
+
+    # gem 'top_n_loader', github: 'tompng/top_n_loader'
+    TopNLoader.load_associations(Post, posts.map(&:id), :comments, limit: 3, order: { id: :desc })
+  }
 end
 
 class Comment < ActiveRecord::Base; end
@@ -36,3 +44,4 @@ p User.preload(foobar: :comments).map { |u| u.foobar&.comments&.map(&:id) }
 p User.preload(:posts_count).map { |u| u.posts_count }
 p User.preload(foobar: :comments_count).map { |u| u.foobar&.comments_count }
 p User.preload(foobars: :comments_count).map { |u| u.foobars.map(&:comments_count) }
+p User.preload(foobars: :comments_last_three).map { |u| u.foobars.map { |p| p.comments_last_three.map(&:id) } }
