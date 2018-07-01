@@ -13,6 +13,12 @@ end
 class Comment < ActiveRecord::Base
   belongs_to :user
   belongs_to :post
+  has_many :emotions
+end
+
+class Emotion < ActiveRecord::Base
+  belongs_to :comment
+  belongs_to :user
 end
 
 module DB
@@ -45,18 +51,28 @@ module DB
         t.references :post, index: true
         t.timestamps
       end
+      create_table :emotions do |t|
+        t.string :kind
+        t.references :user, index: true
+        t.references :comment, index: true
+        t.timestamps
+      end
+      add_index :emotions, [:comment_id, :user_id], unique: true
     end
   end
 
   def self.seed
     users = Array.new(8) { |i| User.create name: "User#{i}" }
-    authors = users.sample(4)
+    authors = users.sample 4
     posts = 16.times.flat_map do |i|
       authors.sample.posts.create title: "title#{i}", body: "body#{i}"
     end
-    hotentries = posts.sample(8)
+    hotentries = posts.sample 8
     32.times.flat_map do |i|
-      hotentries.sample.comments.create user: users.sample, body: "comment#{i}"
+      comment = hotentries.sample.comments.create user: users.sample, body: "comment#{i}"
+      users.sample(rand(0..8)).each do |user|
+        comment.emotions.create user: user, kind: %w(happy sad angry).sample
+      end
     end
   end
 end

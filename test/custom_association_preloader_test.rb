@@ -48,6 +48,18 @@ class Post
   }
 end
 
+class Comment
+  has_custom_association :emotion_summary, preloader: ->(comments) {
+    emotions = Emotion.where comment_id: comments.map(&:id)
+    counts = emotions.group(:comment_id, :kind).count
+    grouped_counts = counts.group_by { |(id, _kind), _count| id }
+    result = grouped_counts.transform_values do |id_kind_counts|
+      id_kind_counts.map { |(_id, kind), count| [kind, count] }.to_h
+    end
+    Hash.new { {} }.merge result
+  }
+end
+
 class CustomAssociationPreloaderTest < Minitest::Test
   def test_that_it_has_a_version_number
     refute_nil ::CustomAssociationPreloader::VERSION
@@ -81,6 +93,15 @@ class CustomAssociationPreloaderTest < Minitest::Test
     assert_equal answer, tohash.call(User.all)
     assert_equal answer, tohash.call(User.all.includes(includes))
     assert_equal answer, tohash.call(User.all.preload(includes))
+  end
+
+  def test_emotions
+    comments = Comment.limit(8)
+    sqlcounts = QueryHook.count_query { comments.includes(:emotion_summary).map(&:emotion_summary) }
+    assert_equal 2, sqlcounts
+    summary = comments.map(&:emotion_summary)
+    correct_summary = comments.map { |c| c.emotions.group(:kind).count }
+    assert_equal correct_summary, summary
   end
 
   def test_assert_query_reduced
