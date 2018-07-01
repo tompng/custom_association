@@ -1,4 +1,6 @@
-class CustomAssociationLoader
+require "custom_association_preloader/version"
+
+class CustomAssociationPreloader::Preloader
   attr_reader :preloaded_records
   def initialize(klass, records, reflection, scope)
     @reflection = reflection
@@ -17,15 +19,15 @@ class CustomAssociationLoader
   end
 end
 
-module CustomPreloaderExtension
+module CustomAssociationPreloader::PreloaderExtension
   def preloader_for(reflection, owners, rhs_klass)
     preloader = super
     return preloader if preloader
-    return CustomAssociationLoader if reflection.macro == :has_custom_field
+    return CustomAssociationPreloader::Preloader if reflection.macro == :has_custom_field
   end
 end
 
-class CustomAssociation < ActiveRecord::Associations::Association
+class CustomAssociationPreloader::Association < ActiveRecord::Associations::Association
   def macro
     :has_custom_field
   end
@@ -46,7 +48,7 @@ class CustomAssociation < ActiveRecord::Associations::Association
   end
 end
 
-class CustomReflection < ActiveRecord::Reflection::AssociationReflection
+class CustomAssociationPreloader::Reflection < ActiveRecord::Reflection::AssociationReflection
   attr_reader :preloader, :block
   def initialize(klass, name, preloader, block)
     @klass = klass
@@ -61,17 +63,17 @@ class CustomReflection < ActiveRecord::Reflection::AssociationReflection
   end
 
   def association_class
-    CustomAssociation
+    CustomAssociationPreloader::Association
   end
 end
 
 class << ActiveRecord::Base
   def has_custom_association(name, preloader:, &block)
     name = name.to_sym
-    reflection = CustomReflection.new self, name, preloader, block
+    reflection = CustomAssociationPreloader::Reflection.new self, name, preloader, block
     ActiveRecord::Reflection.add_reflection self, name, reflection
     ActiveRecord::Associations::Builder::Association.define_readers(self, name)
   end
 end
 
-ActiveRecord::Associations::Preloader.prepend CustomPreloaderExtension
+ActiveRecord::Associations::Preloader.prepend CustomAssociationPreloader::PreloaderExtension
