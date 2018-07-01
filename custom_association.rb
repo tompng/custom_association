@@ -47,7 +47,7 @@ class CustomAssociation < ActiveRecord::Associations::Association
 end
 
 class CustomReflection < ActiveRecord::Reflection::AssociationReflection
-  attr_reader :klass, :name, :preloader, :block
+  attr_reader :preloader, :block
   def initialize(klass, name, preloader, block)
     @klass = klass
     @name = name
