@@ -1,7 +1,7 @@
 require 'active_record'
-require "custom_association_preloader/version"
+require "custom_association/version"
 
-class CustomAssociationPreloader::Preloader
+class CustomAssociation::Preloader
   attr_reader :preloaded_records
   def initialize(klass, records, reflection, scope)
     @reflection = reflection
@@ -20,22 +20,22 @@ class CustomAssociationPreloader::Preloader
   end
 end
 
-module CustomAssociationPreloader::PreloaderExtension
+module CustomAssociation::PreloaderExtension
   if ActiveRecord::Associations::Preloader.instance_method(:preloader_for).arity == 3
     def preloader_for(reflection, owners, rhs_klass)
       preloader = super
       return preloader if preloader
-      return CustomAssociationPreloader::Preloader if reflection.macro == :has_custom_field
+      return CustomAssociation::Preloader if reflection.macro == :has_custom_field
     end
   else
     def preloader_for(reflection, owners)
-      return CustomAssociationPreloader::Preloader if reflection.macro == :has_custom_field
+      return CustomAssociation::Preloader if reflection.macro == :has_custom_field
       super
     end
   end
 end
 
-class CustomAssociationPreloader::Association < ActiveRecord::Associations::Association
+class CustomAssociation::Association < ActiveRecord::Associations::Association
   def macro
     :has_custom_field
   end
@@ -56,7 +56,7 @@ class CustomAssociationPreloader::Association < ActiveRecord::Associations::Asso
   end
 end
 
-class CustomAssociationPreloader::Reflection < ActiveRecord::Reflection::AssociationReflection
+class CustomAssociation::Reflection < ActiveRecord::Reflection::AssociationReflection
   attr_reader :preloader, :block
   def initialize(klass, name, preloader, block)
     @klass = klass
@@ -71,17 +71,17 @@ class CustomAssociationPreloader::Reflection < ActiveRecord::Reflection::Associa
   end
 
   def association_class
-    CustomAssociationPreloader::Association
+    CustomAssociation::Association
   end
 end
 
 class << ActiveRecord::Base
   def has_custom_association(name, preloader:, &block)
     name = name.to_sym
-    reflection = CustomAssociationPreloader::Reflection.new self, name, preloader, block
+    reflection = CustomAssociation::Reflection.new self, name, preloader, block
     ActiveRecord::Reflection.add_reflection self, name, reflection
     ActiveRecord::Associations::Builder::Association.define_readers(self, name)
   end
 end
 
-ActiveRecord::Associations::Preloader.prepend CustomAssociationPreloader::PreloaderExtension
+ActiveRecord::Associations::Preloader.prepend CustomAssociation::PreloaderExtension

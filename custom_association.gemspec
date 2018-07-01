@@ -1,11 +1,11 @@
 
 lib = File.expand_path("../lib", __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require "custom_association_preloader/version"
+require "custom_association/version"
 
 Gem::Specification.new do |spec|
-  spec.name          = "custom_association_preloader"
-  spec.version       = CustomAssociationPreloader::VERSION
+  spec.name          = "custom_association"
+  spec.version       = CustomAssociation::VERSION
   spec.authors       = ["tompng"]
   spec.email         = ["tomoyapenguin@gmail.com"]
 

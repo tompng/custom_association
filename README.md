@@ -1,9 +1,9 @@
-# CustomAssociationPreloader
+# CustomAssociation
 
 Define custom association for eager loading
 
 ```ruby
-gem 'custom_association_preloader', github: 'tompng/custom_association_preloader'
+gem 'custom_association', github: 'tompng/custom_association'
 ```
 
 ## How to use
