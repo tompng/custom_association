@@ -1,3 +1,4 @@
+require 'active_record'
 require "custom_association_preloader/version"
 
 class CustomAssociationPreloader::Preloader
@@ -20,10 +21,17 @@ class CustomAssociationPreloader::Preloader
 end
 
 module CustomAssociationPreloader::PreloaderExtension
-  def preloader_for(reflection, owners, rhs_klass)
-    preloader = super
-    return preloader if preloader
-    return CustomAssociationPreloader::Preloader if reflection.macro == :has_custom_field
+  if ActiveRecord::Associations::Preloader.instance_method(:preloader_for).arity == 3
+    def preloader_for(reflection, owners, rhs_klass)
+      preloader = super
+      return preloader if preloader
+      return CustomAssociationPreloader::Preloader if reflection.macro == :has_custom_field
+    end
+  else
+    def preloader_for(reflection, owners)
+      return CustomAssociationPreloader::Preloader if reflection.macro == :has_custom_field
+      super
+    end
   end
 end
 
