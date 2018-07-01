@@ -1,39 +1,82 @@
 # CustomAssociationPreloader
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/custom_association_preloader`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
-
-## Installation
-
-Add this line to your application's Gemfile:
+Define custom association for eager loading
 
 ```ruby
-gem 'custom_association_preloader'
+gem 'custom_association_preloader', github: 'tompng/custom_association_preloader'
 ```
 
-And then execute:
+## How to use
+```ruby
+# define your custom association and preloading logic
+class User < ActiveRecord::Base
+  has_many :posts
+  has_custom_association :foo, preloader: ->(users) {
+    preload all foos associated to users
+    return { user_id1 => foo1, user_id2 => foo2, ... }
+  }
+  has_custom_association :bar, preloader: ->(users) {
+    preload all bars associated to users
+    return temporary_result
+  } do |temporary_result|
+    temporary_result.retrieve_bar_for(user_id: self.id)
+  end
+end
+User.includes(:posts, :foo, bar: :comments)
+User.preload(:posts, :foo, bar: :comments)
+# User.eager_load(:posts, :foo, bar: :comments) <- cannot join
+```
 
-    $ bundle
+## Practical Examples
+```ruby
+# reduce N+1 `user.posts.last` queries
+class User < ActiveRecord::Base
+  has_custom_association :last_post, preloader: ->(users) {
+    Post.where(user_id: users.map(&:id)).select('max(id), *').group(:user_id).index_by(&:user_id)
+  }
+end
 
-Or install it yourself as:
+class Post < ActiveRecord::Base
+  belongs_to :user
+  has_many :comments
 
-    $ gem install custom_association_preloader
+  # reduce N+1 `comments.count` queries
+  has_custom_association :comments_count, preloader: ->(posts) {
+    Hash.new(0).merge Post.where(id: posts.map(&:id)).joins(:comments).group(:id).count
+  }
 
-## Usage
+  # reduce N+1 `comments.limit(5)` queries
+  has_custom_association :last_five_comments, preloader: ->(posts) {
+    sql = 'nice and sweet sql to get last five comments for each post'
+    Hash.new{[]}.merge Comment.where(post_id: posts.map(&:id)).where(sql).group_by(&:post_id)
+    # this can be done with the below code using 'topng/top_n_loader'
+    # TopNLoader.load_associations(Post, posts.map(&:id), :comments, limit: 5, order: { id: :desc })
+  }
+end
 
-TODO: Write usage instructions here
+# reduce N+1 `group(:kind).count` queries
+class Comment < ActiveRecord::Base
+  has_many :emotions
+  has_custom_association :emotion_summary, preloader: ->(comments) {
+    emotions = Emotion.where comment_id: comments.map(&:id)
+    counts = emotions.group(:comment_id, :kind).count
+    grouped_counts = counts.group_by { |(id, _kind), _count| id }
+    result = grouped_counts.transform_values do |id_kind_counts|
+      id_kind_counts.map { |(_id, kind), count| [kind, count] }.to_h
+    end
+    Hash.new { {} }.merge result
+  }
+end
 
-## Development
-
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
-
-## Contributing
-
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/custom_association_preloader.
-
-## License
-
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+# reduce N+1 api calls
+class User < ActiveRecord::Base
+  has_custom_association :icon, preloader: ->(users) {
+    urls = SomeWebApi.batch_get_icon_urls(users.map(&:some_web_api_user_id))
+    users.map(&:id).zip(urls).to_h
+  }
+  has_custom_association :redisvalue, preloader: ->(users) {
+    values = redis_client.mget(*users.map { |u| "prefix#{u.id}" })
+    users.map(&:id).zip(values).to_h
+  }
+end
+```
