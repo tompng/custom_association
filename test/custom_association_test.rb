@@ -43,6 +43,9 @@ class Post
   has_custom_association :comments_count, default: 0 do |posts|
     Post.where(id: posts.map(&:id)).joins(:comments).group(:id).count
   end
+  has_custom_association :author, mapper: :user_id do |posts|
+    User.where(id: posts.map(&:user_id).uniq).index_by(&:id)
+  end
 end
 
 class Comment
@@ -68,6 +71,16 @@ class CustomAssociationTest < Minitest::Test
     assert_equal answer, tohash.call(User.all)
     assert_equal answer, tohash.call(User.all.includes(includes))
     assert_equal answer, tohash.call(User.all.preload(includes))
+  end
+
+  def test_symbol_mapper
+    posts = Post.limit(4)
+    authors = nil
+    query_count = QueryHook.count_query do
+      authors = posts.includes(:author).map(&:author)
+    end
+    assert_equal 2, query_count
+    assert_equal posts.map(&:user), authors
   end
 
   def test_custom_normal_mixed
