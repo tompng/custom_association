@@ -12,17 +12,21 @@ gem 'custom_association', github: 'tompng/custom_association'
 # define your custom association and preloading logic
 class User < ActiveRecord::Base
   has_many :posts
-  has_custom_association :foo, do |users|
+  has_custom_association :foo do |users|
     # preload all foos associated to users
-    return { user_id1 => foo1, user_id2 => foo2, ... }
+    return { user1.id => foo1, user2.id => foo2, ... }
   end
-  has_custom_association :bar, mapper: ->(result) result.retrieve_bar_for(user: self) do |users|
+  has_custom_association :bar, mapper: :bar_id do |users|
     # preload all bars associated to users
+    return { user1.bar_id => bar1, user2.bar_id => bar2, ... }
+  end
+  has_custom_association :baz, mapper: ->(result) { result.retrieve_baz_for user: self } do |users|
+    # preload all bazs associated to users
   end
 end
-User.includes(:posts, :foo, bar: :comments)
-User.preload(:posts, :foo, bar: :comments)
-# User.eager_load(:posts, :foo, bar: :comments) <- cannot join
+User.includes(:posts, :foo, bar: :user, baz: :comments)
+User.preload(:posts, :foo, bar: :user, baz: :comments)
+# User.eager_load(:posts, :foo, bar: :user, baz: :comments) <- cannot join
 ```
 
 ## Practical Examples
