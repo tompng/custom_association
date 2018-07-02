@@ -7,19 +7,17 @@ gem 'custom_association', github: 'tompng/custom_association'
 ```
 
 ## How to use
+
 ```ruby
 # define your custom association and preloading logic
 class User < ActiveRecord::Base
   has_many :posts
-  has_custom_association :foo, preloader: ->(users) {
-    preload all foos associated to users
+  has_custom_association :foo, do |users|
+    # preload all foos associated to users
     return { user_id1 => foo1, user_id2 => foo2, ... }
-  }
-  has_custom_association :bar, preloader: ->(users) {
-    preload all bars associated to users
-    return temporary_result
-  } do |temporary_result|
-    temporary_result.retrieve_bar_for(user_id: self.id)
+  end
+  has_custom_association :bar, mapper: ->(result) result.retrieve_bar_for(user_id: self.id) do |users|
+    # preload all bars associated to users
   end
 end
 User.includes(:posts, :foo, bar: :comments)
@@ -28,6 +26,7 @@ User.preload(:posts, :foo, bar: :comments)
 ```
 
 ## Practical Examples
+
 ```ruby
 # reduce N+1 `user.posts.last` queries
 class User < ActiveRecord::Base
@@ -41,42 +40,41 @@ class Post < ActiveRecord::Base
   has_many :comments
 
   # reduce N+1 `comments.count` queries
-  has_custom_association :comments_count, preloader: ->(posts) {
-    Hash.new(0).merge Post.where(id: posts.map(&:id)).joins(:comments).group(:id).count
-  }
+  has_custom_association :comments_count, default: 0, do |posts|
+    Post.where(id: posts.map(&:id)).joins(:comments).group(:id).count
+  end
 
   # reduce N+1 `comments.limit(5)` queries
-  has_custom_association :last_five_comments, preloader: ->(posts) {
+  has_custom_association :last_five_comments, default: [], do |posts|
     sql = 'nice and sweet sql to get last five comments for each post'
-    Hash.new{[]}.merge Comment.where(post_id: posts.map(&:id)).where(sql).group_by(&:post_id)
+    Comment.where(post_id: posts.map(&:id)).where(sql).group_by(&:post_id)
     # this can be done with the below code using 'topng/top_n_loader'
     # TopNLoader.load_associations(Post, posts.map(&:id), :comments, limit: 5, order: { id: :desc })
-  }
+  end
 end
 
 # reduce N+1 `group(:kind).count` queries
 class Comment < ActiveRecord::Base
   has_many :emotions
-  has_custom_association :emotion_summary, preloader: ->(comments) {
+  has_custom_association :emotion_summary, default: {} do |comments|
     emotions = Emotion.where comment_id: comments.map(&:id)
     counts = emotions.group(:comment_id, :kind).count
     grouped_counts = counts.group_by { |(id, _kind), _count| id }
-    result = grouped_counts.transform_values do |id_kind_counts|
+    grouped_counts.transform_values do |id_kind_counts|
       id_kind_counts.map { |(_id, kind), count| [kind, count] }.to_h
     end
-    Hash.new { {} }.merge result
-  }
+  end
 end
 
 # reduce N+1 api calls
 class User < ActiveRecord::Base
-  has_custom_association :icon, preloader: ->(users) {
+  has_custom_association :icon, do |users|
     urls = SomeWebApi.batch_get_icon_urls(users.map(&:some_web_api_user_id))
     users.map(&:id).zip(urls).to_h
-  }
-  has_custom_association :redisvalue, preloader: ->(users) {
+  end
+  has_custom_association :redisvalue, do |users|
     values = redis_client.mget(*users.map { |u| "prefix#{u.id}" })
     users.map(&:id).zip(values).to_h
-  }
+  end
 end
 ```
