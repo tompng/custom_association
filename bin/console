@@ -3,6 +3,7 @@
 require "bundler/setup"
 require "custom_association"
 require_relative "../test/db"
-
 require "pry"
+
+ActiveRecord::Base.logger.level = Logger::DEBUG
 Pry.start
