@@ -16,7 +16,7 @@ class User < ActiveRecord::Base
     # preload all foos associated to users
     return { user_id1 => foo1, user_id2 => foo2, ... }
   end
-  has_custom_association :bar, mapper: ->(result) result.retrieve_bar_for(user_id: self.id) do |users|
+  has_custom_association :bar, mapper: ->(result) result.retrieve_bar_for(user: self) do |users|
     # preload all bars associated to users
   end
 end
@@ -30,9 +30,9 @@ User.preload(:posts, :foo, bar: :comments)
 ```ruby
 # reduce N+1 `user.posts.last` queries
 class User < ActiveRecord::Base
-  has_custom_association :last_post, preloader: ->(users) {
+  has_custom_association :last_post do |users|
     Post.where(user_id: users.map(&:id)).select('max(id), *').group(:user_id).index_by(&:user_id)
-  }
+  end
 end
 
 class Post < ActiveRecord::Base
