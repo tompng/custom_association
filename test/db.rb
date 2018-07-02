@@ -30,6 +30,7 @@ module DB
   }
   ActiveRecord::Base.establish_connection DATABASE_CONFIG
   ActiveRecord::Base.logger = Logger.new(STDOUT)
+  ActiveRecord::Base.logger.level = Logger::WARN
 
   def self.migrate
     File.unlink DATABASE_CONFIG[:database] if File.exist? DATABASE_CONFIG[:database]

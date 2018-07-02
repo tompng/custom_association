@@ -31,33 +31,29 @@ end
 
 
 class User
-  has_custom_association :posts_at_idx3, preloader: ->(users) {
+  has_custom_association :posts_at_idx3, mapper: ->(preloaded) { preloaded[id]&.[] 3 } do |users|
     Post.where(user_id: users.map(&:id)).group_by(&:user_id)
-  } do |preloaded|
-    preloaded[id]&.[] 3
   end
-  has_custom_association :odd_posts, preloader: ->(users) {
-    posts = Post.where(user_id: users.map(&:id)).where('id % 2 = 1')
-    Hash.new { [] }.merge posts.group_by(&:user_id)
-  }
+  has_custom_association :odd_posts, default: [] do |users|
+    Post.where(user_id: users.map(&:id)).where('id % 2 = 1').group_by(&:user_id)
+  end
 end
 
 class Post
-  has_custom_association :comments_count, preloader: ->(posts) {
-    Hash.new(0).merge Post.where(id: posts.map(&:id)).joins(:comments).group(:id).count
-  }
+  has_custom_association :comments_count, default: 0 do |posts|
+    Post.where(id: posts.map(&:id)).joins(:comments).group(:id).count
+  end
 end
 
 class Comment
-  has_custom_association :emotion_summary, preloader: ->(comments) {
+  has_custom_association :emotion_summary, default: {} do |comments|
     emotions = Emotion.where comment_id: comments.map(&:id)
     counts = emotions.group(:comment_id, :kind).count
     grouped_counts = counts.group_by { |(id, _kind), _count| id }
-    result = grouped_counts.transform_values do |id_kind_counts|
+    grouped_counts.transform_values do |id_kind_counts|
       id_kind_counts.map { |(_id, kind), count| [kind, count] }.to_h
     end
-    Hash.new { {} }.merge result
-  }
+  end
 end
 
 class CustomAssociationTest < Minitest::Test

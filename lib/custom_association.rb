@@ -3,6 +3,7 @@ require "custom_association/version"
 
 class CustomAssociation::Preloader
   attr_reader :preloaded_records
+
   def initialize(klass, records, reflection, scope)
     @reflection = reflection
     @klass = klass
@@ -13,7 +14,7 @@ class CustomAssociation::Preloader
   def run(_preloader)
     preloaded = @reflection.preloader.call @records
     @preloaded_records = @records.flat_map do |record|
-      value = record.instance_exec preloaded, &@reflection.block
+      value = record.instance_exec preloaded, &@reflection.mapper
       record.association(@reflection.name).writer(value)
       value
     end
@@ -42,7 +43,7 @@ class CustomAssociation::Association < ActiveRecord::Associations::Association
 
   def writer value
     @loaded = true
-    @value = value
+    @value = value.nil? ? @reflection.default : value
   end
 
   def reader
@@ -52,18 +53,20 @@ class CustomAssociation::Association < ActiveRecord::Associations::Association
 
   def load
     preloaded = @reflection.preloader.call [@owner]
-    writer @owner.instance_exec preloaded, &@reflection.block
+    writer @owner.instance_exec preloaded, &@reflection.mapper
   end
 end
 
 class CustomAssociation::Reflection < ActiveRecord::Reflection::AssociationReflection
-  attr_reader :preloader, :block
-  def initialize(klass, name, preloader, block)
+  attr_reader :preloader, :mapper, :default
+
+  def initialize(klass, name, preloader:, mapper:, default:)
     @klass = klass
     @name = name
     @preloader = preloader
-    @block = block || ->(preloaded) { preloaded[id] }
-    @options = {}
+    @mapper = mapper.is_a?(Symbol) ? ->(preloaded) { preloaded[send(mapper)] } : mapper
+    @default = default
+    @options = {} # HACK: AssociationReflection requires this.
   end
 
   def macro
@@ -76,9 +79,9 @@ class CustomAssociation::Reflection < ActiveRecord::Reflection::AssociationRefle
 end
 
 class << ActiveRecord::Base
-  def has_custom_association(name, preloader:, &block)
+  def has_custom_association(name, mapper: :id, default: nil, &block)
     name = name.to_sym
-    reflection = CustomAssociation::Reflection.new self, name, preloader, block
+    reflection = CustomAssociation::Reflection.new self, name, preloader: block, mapper: mapper, default: default
     ActiveRecord::Reflection.add_reflection self, name, reflection
     ActiveRecord::Associations::Builder::Association.define_readers(self, name)
   end
