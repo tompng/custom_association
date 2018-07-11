@@ -22,6 +22,7 @@ class User < ActiveRecord::Base
   end
   has_custom_association :baz, mapper: ->(result) { result.retrieve_baz_for user: self } do |users|
     # preload all bazs associated to users
+    # return any preload result you want to pass to mapper
   end
 end
 User.includes(:posts, :foo, bar: :user, baz: :comments)
@@ -52,7 +53,7 @@ class Post < ActiveRecord::Base
   has_custom_association :last_five_comments, default: [], do |posts|
     sql = 'nice and sweet sql to get last five comments for each post'
     Comment.where(post_id: posts.map(&:id)).where(sql).group_by(&:post_id)
-    # this can be done with the below code using 'topng/top_n_loader'
+    # this can be done with the below code using 'tompng/top_n_loader'
     # TopNLoader.load_associations(Post, posts.map(&:id), :comments, limit: 5, order: { id: :desc })
   end
 end
