@@ -36,7 +36,7 @@ User.preload(:posts, :foo, bar: :user, baz: :comments)
 # reduce N+1 `user.posts.last` queries
 class User < ActiveRecord::Base
   has_custom_association :last_post do |users|
-    ids = Post.where(user_id: users.map(&:id)).select('max(id)').group(:user_id).pluck('max(id)')
+    ids = Post.where(user_id: users.map(&:id)).group(:user_id).pluck(Arel.sql('max(id)'))
     Post.where(id: ids).index_by(&:user_id)
   end
 end
