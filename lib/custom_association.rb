@@ -76,6 +76,13 @@ class CustomAssociation::Reflection < ActiveRecord::Reflection::AssociationRefle
   def association_class
     CustomAssociation::Association
   end
+
+  def check_eager_loadable!
+    raise ArgumentError, <<-MSG.squish
+      The association scope '#{name}' does not support join.
+      Use `includes`, `preload` or `includes(...).preload(...)` instead of `eager_load`.
+    MSG
+  end
 end
 
 class << ActiveRecord::Base

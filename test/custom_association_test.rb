@@ -128,4 +128,14 @@ class CustomAssociationTest < Minitest::Test
     assert_equal querybefore, queryafter
     assert querybefore > 10
   end
+
+  def test_join_error
+    begin
+      User.joins(:odd_posts).to_a
+    rescue => e
+      error = e
+    end
+    assert_equal ArgumentError, error.class
+    assert_match(/does not support join/, error.message)
+  end
 end
