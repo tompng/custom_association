@@ -79,7 +79,7 @@ class User < ActiveRecord::Base
     urls = SomeWebApi.batch_get_icon_urls(users.map(&:some_web_api_user_id))
     users.map(&:id).zip(urls).to_h
   end
-  has_custom_association :redisvalue, do |users|
+  has_custom_association :redis_value, do |users|
     values = redis_client.mget(*users.map { |u| "prefix#{u.id}" })
     users.map(&:id).zip(values).to_h
   end
