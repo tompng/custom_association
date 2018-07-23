@@ -27,7 +27,8 @@ class User < ActiveRecord::Base
 end
 User.includes(:posts, :foo, bar: :user, baz: :comments)
 User.preload(:posts, :foo, bar: :user, baz: :comments)
-# User.eager_load(:posts, :foo, bar: :user, baz: :comments) <- cannot join
+User.eager_load(:posts).preload(:foo, bar: :user, baz: :comments)
+User.references(:posts).includes(:posts).preload(:foo, bar: :user, baz: :comments)
 ```
 
 ## Practical Examples
