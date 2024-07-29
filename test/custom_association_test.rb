@@ -7,7 +7,7 @@ DB.seed
 module QueryHook
   module Interceptor
     # activerecord <= 7.0
-    def exec_query *args
+    def exec_query(*args, **option)
       QueryHook.query_executed args
       super
     end
@@ -68,13 +68,13 @@ class CustomAssociationTest < Minitest::Test
     refute_nil ::CustomAssociation::VERSION
   end
 
-  def test_custom_custom
-    tohash = ->(users) { users.map { |u| u.posts_at_idx3&.comments_count } }
+  def test_custom_through_custom
+    to_hash = ->(users) { users.map { |u| u.posts_at_idx3&.comments_count } }
     answer = User.all.map { |u| u.posts[3]&.comments&.count }
     includes = { posts_at_idx3: :comments_count }
-    assert_equal answer, tohash.call(User.all)
-    assert_equal answer, tohash.call(User.all.includes(includes))
-    assert_equal answer, tohash.call(User.all.preload(includes))
+    assert_equal answer, to_hash.call(User.all)
+    assert_equal answer, to_hash.call(User.all.includes(includes))
+    assert_equal answer, to_hash.call(User.all.preload(includes))
   end
 
   def test_symbol_mapper

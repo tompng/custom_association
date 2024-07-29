@@ -24,27 +24,26 @@ class CustomAssociation::Preloader < ActiveRecord::Associations::Preloader::Asso
   end
 end
 
-module CustomAssociation::PreloaderExtension
-
-    # def preloader_for(reflection, owners, rhs_klass)
-    #   preloader = super
-    #   return preloader if preloader
-    #   return CustomAssociation::Preloader if reflection.macro == :has_custom_field
-    # end
-
-    # def preloader_for(reflection, owners)
-    #   return CustomAssociation::Preloader if reflection.macro == :has_custom_field
-    #   super
-    # end
-  def preloader_for(reflection)
-    reflection.macro == :has_custom_field ? CustomAssociation::Preloader : super
+if defined? ActiveRecord::Associations::Preloader::Branch # activerecord >= 7.0
+  module CustomAssociation::PreloaderExtension
+    def preloader_for(reflection)
+      reflection.macro == :has_custom_association ? CustomAssociation::Preloader : super
+    end
   end
+  ActiveRecord::Associations::Preloader::Branch.prepend CustomAssociation::PreloaderExtension
+else # activerecord < 7.0
+  module CustomAssociation::PreloaderExtension
+    def preloader_for(reflection, owners)
+      reflection.macro == :has_custom_association ? CustomAssociation::Preloader : super
+    end
+  end
+  ActiveRecord::Associations::Preloader.prepend CustomAssociation::PreloaderExtension
 end
 
 class CustomAssociation::Association < ActiveRecord::Associations::Association
 
   def macro
-    :has_custom_field
+    :has_custom_association
   end
 
   def writer value
@@ -78,7 +77,7 @@ class CustomAssociation::Reflection < ActiveRecord::Reflection::AssociationRefle
   end
 
   def macro
-    :has_custom_field
+    :has_custom_association
   end
 
   def check_validity!
@@ -104,5 +103,3 @@ class << ActiveRecord::Base
     ActiveRecord::Associations::Builder::Association.send(:define_readers, self, name)
   end
 end
-
-ActiveRecord::Associations::Preloader::Branch.prepend CustomAssociation::PreloaderExtension
