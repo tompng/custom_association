@@ -1,13 +1,19 @@
 require "test_helper"
 require 'db'
-require 'pry'
 
 DB.migrate
 DB.seed
 
 module QueryHook
   module Interceptor
-    def exec_query *args
+    # activerecord <= 7.0
+    def exec_query(*args, **option)
+      QueryHook.query_executed args
+      super
+    end
+
+    # activerecord >= 7.1
+    def internal_exec_query(*args, **option)
       QueryHook.query_executed args
       super
     end
@@ -27,8 +33,6 @@ module QueryHook
 
   ActiveRecord::Base.connection.singleton_class.prepend Interceptor
 end
-
-
 
 class User
   has_custom_association :posts_at_idx3, mapper: ->(preloaded) { preloaded[id]&.[] 3 } do |users|
@@ -64,13 +68,13 @@ class CustomAssociationTest < Minitest::Test
     refute_nil ::CustomAssociation::VERSION
   end
 
-  def test_custom_custom
-    tohash = ->(users) { users.map { |u| u.posts_at_idx3&.comments_count } }
+  def test_custom_through_custom
+    to_hash = ->(users) { users.map { |u| u.posts_at_idx3&.comments_count } }
     answer = User.all.map { |u| u.posts[3]&.comments&.count }
     includes = { posts_at_idx3: :comments_count }
-    assert_equal answer, tohash.call(User.all)
-    assert_equal answer, tohash.call(User.all.includes(includes))
-    assert_equal answer, tohash.call(User.all.preload(includes))
+    assert_equal answer, to_hash.call(User.all)
+    assert_equal answer, to_hash.call(User.all.includes(includes))
+    assert_equal answer, to_hash.call(User.all.preload(includes))
   end
 
   def test_symbol_mapper
@@ -130,12 +134,14 @@ class CustomAssociationTest < Minitest::Test
   end
 
   def test_join_error
-    begin
+    assert User.preload(:odd_posts).to_a
+
+    assert_raises CustomAssociation::EagerLoadError do
       User.joins(:odd_posts).to_a
-    rescue => e
-      error = e
     end
-    assert_equal ArgumentError, error.class
-    assert_match(/does not support join/, error.message)
+
+    assert_raises CustomAssociation::EagerLoadError do
+      User.eager_load(:odd_posts).to_a
+    end
   end
 end

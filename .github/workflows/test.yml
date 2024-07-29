@@ -1,0 +1,23 @@
+name: Test
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: [ '3.2', '3.3' ]
+        gemfiles:
+          - gemfiles/Gemfile-rails-6
+          - gemfiles/Gemfile-rails-7-0
+          - gemfiles/Gemfile-rails-7-1
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby }}
+    - run: |
+        sudo apt-get update
+        sudo apt-get install -y libsqlite3-dev
+    - run: bundle install --gemfile ${{ matrix.gemfiles }} --jobs 4 --retry 3
+    - run: bundle exec --gemfile ${{ matrix.gemfiles }} rake
