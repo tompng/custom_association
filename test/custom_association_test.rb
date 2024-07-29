@@ -1,13 +1,19 @@
 require "test_helper"
 require 'db'
-require 'pry'
 
 DB.migrate
 DB.seed
 
 module QueryHook
   module Interceptor
+    # activerecord <= 7.0
     def exec_query *args
+      QueryHook.query_executed args
+      super
+    end
+
+    # activerecord >= 7.1
+    def internal_exec_query(*args, **option)
       QueryHook.query_executed args
       super
     end
@@ -27,8 +33,6 @@ module QueryHook
 
   ActiveRecord::Base.connection.singleton_class.prepend Interceptor
 end
-
-
 
 class User
   has_custom_association :posts_at_idx3, mapper: ->(preloaded) { preloaded[id]&.[] 3 } do |users|
@@ -130,12 +134,14 @@ class CustomAssociationTest < Minitest::Test
   end
 
   def test_join_error
-    begin
+    assert User.preload(:odd_posts).to_a
+
+    assert_raises CustomAssociation::EagerLoadError do
       User.joins(:odd_posts).to_a
-    rescue => e
-      error = e
     end
-    assert_equal ArgumentError, error.class
-    assert_match(/does not support join/, error.message)
+
+    assert_raises CustomAssociation::EagerLoadError do
+      User.eager_load(:odd_posts).to_a
+    end
   end
 end

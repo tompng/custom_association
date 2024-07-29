@@ -3,6 +3,9 @@ require 'active_record'
 
 class User < ActiveRecord::Base
   has_many :posts
+  has_custom_association :same_id_post do |users|
+    Post.where(id: users.map(&:id)).index_by(&:id)
+  end
 end
 
 class Post < ActiveRecord::Base
